@@ -6,16 +6,24 @@
 #include <stdint.h>
 #include "stm32wb55xx.h"
 
+#define THUMB_MODE_BIT_pos		24U
+#define THUMB_MODE_BIT_Msk		(1UL << THUMB_MODE_BIT_pos)
+#define THUMB_MODE				THUMB_MODE_BIT_Msk
+
 #define BaseType_t		int32_t
 #define UBaseType_t		uint32_t
 
 typedef BaseType_t 	semaphore_t;
 typedef UBaseType_t TaskProfiler_t;
 
-#define PERIOD		100 		//PERIOD is 100*10. As 10 is the Quanta
-#define TIM2_UIF	(1U << 0);	//TIM2 Interrupt_flag
+//Enumeration for task states
+typedef enum {
+    TASK_READY,
+    TASK_RUNNING,
+    TASK_BLOCKED,
+    TASK_SUSPENDED
+}task_state_t;
 
-void Timer2_1Hz_Interrupt_Init(void);
 void osKernelInit(void);
 void oskernelStackInit(int i);
 uint8_t osKernelAddThreads(void(*task0)(void),void(*task1)(void),void(*task2)(void));

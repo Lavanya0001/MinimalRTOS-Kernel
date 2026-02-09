@@ -1,28 +1,27 @@
+
 #include "led.h"
 
-#define GPIOBEN		(1U << 1) // 0b 0000 0000 0000 0000 0000 0000 0000 0010
-#define LED_PIN		(1U << 5)
-
-void led_init(void){
-
+void Led_Init(void)
+{
+	/* BLUE LED */
 	/* Enable clock access to led port (port B)*/
-	RCC->AHB2ENR |= GPIOBEN;
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN;
 
-	/* Set led pin as output*/
-	GPIOB->MODER |= (1U << 10);
-	GPIOB->MODER &= ~(1U << 11);
+		/* Set led pin as output*/
+		GPIOB->MODER |= GPIO_MODER_MODE5_0;
+		GPIOB->MODER &= ~(GPIO_MODER_MODE5_1);
 
 }
 
-void led_on(void){
-
-	/* Set led pin HIGH (PB5)*/
-	GPIOB->ODR |= (LED_PIN);
+void Led_Set(uint32_t gpio)
+{
+//	/* Set led pin HIGH (PB5)*/
+	GPIOB->ODR |= gpio;
 }
 
-void led_off(void){
-
+void Led_Clear(uint32_t gpio)
+{
 	/* Set led pin LOW (PB5)*/
-	GPIOB->ODR &= ~(LED_PIN);
+	GPIOB->ODR &= ~(gpio);
 
 }

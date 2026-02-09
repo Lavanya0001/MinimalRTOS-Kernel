@@ -12,6 +12,7 @@
 #include "led.h"
 #include "uart.h"
 #include "oskernel.h"
+#include "timebase.h"
 
 #if SEMA
 	semaphore_t semaphore1,semaphore2;
@@ -75,7 +76,6 @@ void task1(void)
 	#endif
 
 	#if COOP_SCHEDULER
-
 		Task1_Profiler++;
  		#if UART_DEBUG_IN_TASK
 			printf("task -1 is running..\n");
@@ -120,13 +120,16 @@ int main()
 #endif
 
 #if TIMER
-	Timer2_1Hz_Interrupt_Init();
+	Timer2_Init();
 #endif
 
 #if SEMA
 	osSemaphoreInit(&semaphore1, 1);
 	osSemaphoreInit(&semaphore2, 0);
 #endif
+	Led_Init();
+	Led_Set(ON_BOARD_LED_BLUE);
+
 
 	/*Initializing kernel*/
 	osKernelInit();
@@ -145,7 +148,7 @@ int main()
 void TIM2_IRQHandler(void)
 {
 	/*Clear UIE(Update Interrupt)flag*/
-	TIM2->SR &= ~TIM2_UIF;
+	TIM2->SR &= ~TIM_SR_UIF;
 
 #if TIMER
 	pTask1_Profiler++;

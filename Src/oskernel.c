@@ -1,19 +1,9 @@
-#include <rtos_config.h>
+#include "rtos_config.h"
 #include "oskernel.h"
+#include "timebase.h"
 
-#define THUMB_MODE_BIT			24
+#define NUM_OF_THREADS			3UL
 
-#define CTRL_EN			(1U << 0)
-#define CTRL_TICKINT	(1U << 1)
-#define CTRL_CLKSRC		(1U << 2)
-#define CTRL_COUNTFLAG	(1U << 16)
-#define CTRL_RESET		0
-
-#define TIM2_ENABLE				(1U << 0)
-#define TIM2_CR1_CEN			(1U << 0)
-#define TIM2_DIER_UIE			(1U << 0)
-
-#define NUM_OF_THREADS			3U
 #if UART_DEBUG_IN_TASK
 	#define STACKSIZE				400U
 #else
@@ -23,15 +13,13 @@
 
 #define BUS_FREQUENCY			4000000
 
-#define ICSR_REG				(*((volatile uint32_t *)0xE000ED04))
-#define PENDST_SET				(1U << 26)
-
 uint32_t MILLI_PRESCALAR;
 
 struct tcb{
-	UBaseType_t stackPt;
-	struct tcb *nextpt;
-	BaseType_t task_priority;
+	UBaseType_t stackPt;		// PSP
+	struct tcb *nextpt;			// Next Task TCB
+	BaseType_t priority; 		// Task Priority
+	task_state_t state;			// task State
 };
 
 typedef struct tcb tcbType;
@@ -44,13 +32,14 @@ int32_t TCB_STACK[NUM_OF_THREADS][STACKSIZE];
 uint32_t period_tick = 0;
 void osSchedularLaunch(void);
 void osSchedulerRoundRobbin(void);
+
 void oskernelStackInit(int i)
 {
 	tcbs[i].stackPt = (int32_t)&TCB_STACK[i][STACKSIZE - 16]; /*Stack pointer*/
 
 	/* Set bit21 (T - bit) in PSR to 1,to operate in
-	 * Thumb mode*/
-	TCB_STACK[i][STACKSIZE - 1] = (1U << THUMB_MODE_BIT);	/* PSR ( 1. APSR 2. IPSR 3. EPSR)*/
+	 * Thumb mode */
+	TCB_STACK[i][STACKSIZE - 1] = THUMB_MODE;	/* PSR ( 1. APSR 2. IPSR 3. EPSR)*/
 
 	/**@Note : Block below is optional, for debugging purpose only*/
 	/**Dummy stack content */
@@ -141,12 +130,11 @@ void osKernelLaunch(uint32_t QUANTA)
 }
 
 /*((naked)) function means, it wont execute the context switching of registers by the
- *  compiler on should do using inline assembly __asm(); and
+ *  compiler on should do using in line assembly __asm(); and
  * When exception occurs these registers are automatically
- * 	stored into the stack : r0,r1,r2,r3,r12,lr,pc,xpsr*/
+ * 	stored into the stack : r0,r1,r2,r3,r12,LR,PC,xPSR */
 
-__attribute__((naked)) void SysTick_Handler(void){
-
+__attribute__((naked)) void PendSV_Handler(void){
     /* SUSPEND CURRENT THREAD */
 	/*Disable global interrupts */
 	__asm("CPSID I");
@@ -171,10 +159,12 @@ __attribute__((naked)) void SysTick_Handler(void){
 	__asm("BL osSchedulerRoundRobbin");
 	__asm("POP {R0,LR}");
 	__asm("LDR R1,[R0]");
+
 	#else
 	/* Load R1 from a location 4-bytes above address r1, i.e r1 = currentPt->next*/
 	__asm("LDR R1, [R1, #4]");
 	__asm("STR R1, [R0]");
+
 	#endif
 
 	/* Load Cortex-M SP from address equals r1, i.e SP = currentPt->stackPt*/
@@ -186,10 +176,8 @@ __attribute__((naked)) void SysTick_Handler(void){
 	/* Enable global Interrupts*/
 	__asm("CPSIE I");
 
-	/* Return from exception and restore r0,r1,r2,r3,r12,lr,pc,psr */
+	/* Return from exception and restore r0,r1,r2,r3,r12,LR,PC,PSR */
 	__asm("BX LR");
-
-
 }
 
 void osSchedularLaunch(void)
@@ -218,7 +206,7 @@ void osSchedularLaunch(void)
 	/*Create new start location by popping LR */
 	__asm("POP {LR}");
 
-	/*Ski[ PSR byosThreadYield adding 4 to SP */
+	/*Skip PSR byosThreadYield adding #4 to SP */
 	__asm("ADD SP,SP,#4");
 
 	/* Enable global Interrupts*/
@@ -231,15 +219,11 @@ void osSchedularLaunch(void)
 
 void osThreadYield(void)
 {
-	/*Clear SysTick Current value register */
-	SysTick->VAL = 0U;
-
-	/*Set SysTick Interrupt to be Pending, by setting 26 bit in this register */
-	ICSR_REG = PENDST_SET;
-
+	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
-void osSchedulerRoundRobbin(void){
+void osSchedulerRoundRobbin(void)
+{
 	if(++period_tick == PERIOD)
 	{
 		(*task3)();
@@ -249,29 +233,6 @@ void osSchedulerRoundRobbin(void){
 	currentPt = currentPt->nextpt;
 }
 
-void Timer2_1Hz_Interrupt_Init(void)
-{
-	/* Enable clock source access for Timer2,APB1*/
-	RCC->APB1ENR1 |= TIM2_ENABLE;
-
-	/* Set timer pre-scaler */
-	TIM2->PSC = 400 - 1; // 4,000,000/400 = 10KHz
-
-	/* Set auto-reload value (ARR) */
-	TIM2->ARR = 10000 - 1; // 10000/10000 = 1Hz
-
-	/* Clear timer counter */
-	TIM2->CNT = 0;
-
-	/* Enable timer counter*/
-	TIM2->CR1 = TIM2_CR1_CEN;
-
-	/* Enable timer interrupt*/
-	TIM2->DIER |= TIM2_DIER_UIE;
-
-	/* Enable timer interrupt in NVIC*/
-	NVIC_EnableIRQ(TIM2_IRQn);
-}
 
 void osSemaphoreInit(int32_t *semaphore,int32_t value)
 {

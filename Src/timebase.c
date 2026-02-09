@@ -1,25 +1,18 @@
 #include "timebase.h"
 #include "stm32wb55xx.h"
 
-#define ONE_SEC_LOAD	4000000
-
-#define CTRL_EN			(1U << 0)
-#define CTRL_TICKINT	(1U << 1)
-#define CTRL_CLKSRC		(1U << 2)
-#define CTRL_COUNTFLAG	(1U << 16)
-
-#define MAX_DELAY		0xFFFFFFFF
+#define ONE_SEC_LOAD	4000000UL
+#define MAX_DELAY		0xFFFFFFFFUL
 
 volatile uint32_t g_curr_tick;
 volatile uint32_t g_curr_tick_p;
 
 volatile uint32_t tick_freq = 1;
 
-static void tick_increment(void)
+static void inline SysTick_Inc(void)
 {
 	g_curr_tick += tick_freq;
 }
-
 
 uint32_t get_tick(void)
 {
@@ -28,45 +21,72 @@ uint32_t get_tick(void)
 	__enable_irq();
 
 	return g_curr_tick_p;
-
 }
 
 /* Delay in seconds*/
-void delay(uint32_t delay)
+void SysTick_Delay_Sec(uint32_t delay)
 {
 	uint32_t tickstart = get_tick();
 	uint32_t wait = delay;
 
-/* Now,I am not using this as its becoming +1*/
+// Now,I am not using this as its becoming +1
 //	if(wait < MAX_DELAY)
 //	{
 //		wait += (uint32_t)tick_freq;
 //	}
+
 	while((get_tick() - tickstart) < wait)
 	{
-
+		//Does Nothing
 	}
 }
 
-void timebase_init(void)
+void SysTick_Init(void)
 {
 	/* Reload the timer with number of cycles per second*/
 	SysTick->LOAD = ONE_SEC_LOAD - 1;
 
 	/* Clear SysTick current value register*/
-	SysTick->VAL = 0;
+	SysTick->VAL = 0UL;
 
 	/* Select internal clock source*/
-	SysTick->CTRL = CTRL_CLKSRC;
+	SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk;
 
 	/* Enable interrupt */
-	SysTick->CTRL |= CTRL_TICKINT;
+	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
 
 	/* Enable sysTick */
-	SysTick->CTRL |= CTRL_EN;
+	SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 
 	/* Enable global interrupts */
 	__enable_irq();
 }
 
-/* Here you can keep this SysTick_Handler and keep the ISR Routine for the delay*/
+void Timer2_Init(void)
+{
+	/* Enable clock source access for Timer2,APB1*/
+	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
+
+	/* Set timer pre-scaler */
+	TIM2->PSC = 400 - 1; // 4,000,000/400 = 10KHzTIM2_ENABLE
+
+	/* Set auto-reload value (ARR) */
+	TIM2->ARR = 10000 - 1; // 10000/10000 = 1Hz
+
+	/* Clear timer counter */
+	TIM2->CNT = 0;
+
+	/* Enable timer counter*/
+	TIM2->CR1 = TIM_CR1_CEN;
+
+	/* Enable timer interrupt*/
+	TIM2->DIER |= TIM_DIER_UIE;
+
+	/* Enable timer interrupt in NVIC*/
+	NVIC_EnableIRQ(TIM2_IRQn);
+}
+
+void SysTick_Handler(void)
+{
+	SysTick_Inc();
+}
