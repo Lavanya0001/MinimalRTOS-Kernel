@@ -9,28 +9,37 @@
 #ifndef RTOS_CONFIG_H_
 #define RTOS_CONFIG_H_
 
-#define COOP_SCHEDULER	1U
+#define NON_RTOS   		0U
+#define COOPERATIVE 	1U
+#define ROUND_ROBIN 	2U
+#define PRIORITY		3U
 
-#if !COOP_SCHEDULER
+#define RTOS_SCHEDULER COOPERATIVE
+
+#if (RTOS_SCHEDULER == NON_RTOS)
+	#define RTOS 		   0U
+	#define COOP_SCHEDULER 0U
+	#define RR_SCHEDULER   0U
+	#define RTOS 		   0U
+#elif(RTOS_SCHEDULER == ROUND_ROBIN)
+	#define RTOS 		    1U
 	#define RR_SCHEDULER	1U
-#else
-	#define RR_SCHEDULER	0U
+	#define QUANTA			1000U
+
+#elif(RTOS_SCHEDULER == COOPERATIVE)
+	#define RTOS 		    1U
+	#define COOP_SCHEDULER	1U
+
 #endif
 
-#if RR_SCHEDULER
-#define PERODIC_TASK	1U
-#endif
+#define PERODIC_TASK	0U
+#define SEMA			0U
+#define TIMER			0U
 
-#define SEMA			1U
-#define TIMER			1U
 
 
 #define UART_DEBUG			1U //Always, UART_DEBUG = 1; to get log from the MCU
 #define UART_DEBUG_IN_TASK 	0U
-
-#ifdef RR_SCHEDULER		//Round-Robin Scheduler
-	#define QUNATA	10 	// Milli-Seconds
-#endif
 
 #define oSconfig_MAX_PRIOITIES 			3
 

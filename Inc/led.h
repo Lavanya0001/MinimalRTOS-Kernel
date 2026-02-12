@@ -12,6 +12,6 @@
 void Led_Init(void);
 void Led_Set(uint32_t gpio);
 void Led_Clear(uint32_t gpio);
-
+void Led_Toggle(uint32_t gpio);
 
 #endif /* LED_H_ */

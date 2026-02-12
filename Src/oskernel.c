@@ -1,6 +1,6 @@
+#include <timer.h>
 #include "rtos_config.h"
 #include "oskernel.h"
-#include "timebase.h"
 
 #define NUM_OF_THREADS			3UL
 
@@ -101,30 +101,8 @@ void osKernelInit(void)
 
 }
 
-void osKernelLaunch(uint32_t QUANTA)
+inline void osKernelLaunch(void)
 {
-	#if !COOP_SCHEDULER
-
-	/* Reset the SysTick */
-	SysTick->CTRL = CTRL_RESET;
-
-	/* Clear the SysTick current value register*/
-	SysTick->VAL = 0;
-
-	/* Load QUANTA */
-	SysTick->LOAD = (QUANTA * MILLI_PRESCALAR) - 1;
-
-	/* set SysTick to lowest priority */
-	NVIC_SetPriority(SysTick_IRQn,15);
-
-	/* Enable SysTick, select internal clock source */
-	SysTick->CTRL = CTRL_CLKSRC | CTRL_EN;
-
-	/* Enable SysTick interrupt*/
-	SysTick->CTRL |= CTRL_TICKINT;
-
-	#endif
-
 	/* Launch Scheduler */
 	osSchedularLaunch();
 }
@@ -217,7 +195,7 @@ void osSchedularLaunch(void)
 
 }
 
-void osThreadYield(void)
+inline void osThreadYield(void)
 {
 	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }

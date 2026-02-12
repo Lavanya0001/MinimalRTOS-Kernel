@@ -1,20 +1,24 @@
-#include "timebase.h"
+#include <timer.h>
+#include <rtos_config.h>
 #include "stm32wb55xx.h"
 
-#define ONE_SEC_LOAD	4000000UL
-#define MAX_DELAY		0xFFFFFFFFUL
+#define ONE_SEC_LOAD		4000000UL
+#define ONE_MILLISEC_LOAD	4000UL
+#define MAX_DELAY			0xFFFFFFFFUL
 
-volatile uint32_t g_curr_tick;
-volatile uint32_t g_curr_tick_p;
+__TIMER g_curr_tick;
+__TIMER g_curr_tick_p;
 
-volatile uint32_t tick_freq = 1;
+__TIMER tick_freq = 1;
+__TIMER Quanta_timer;
 
-static void inline SysTick_Inc(void)
+__STATIC_INLINE void SysTick_Inc(void)
 {
 	g_curr_tick += tick_freq;
+	Quanta_timer +=1;
 }
 
-uint32_t get_tick(void)
+uint32_t SysTick_get_tick(void)
 {
 	__disable_irq();
 	g_curr_tick_p = g_curr_tick;
@@ -23,28 +27,32 @@ uint32_t get_tick(void)
 	return g_curr_tick_p;
 }
 
-/* Delay in seconds*/
-void SysTick_Delay_Sec(uint32_t delay)
-{
-	uint32_t tickstart = get_tick();
+//Delay in Seconds
+void SysTick_Delay_Sec(__REG delay){
+	delay *= 1000;
+	uint32_t tickstart = SysTick_get_tick();
 	uint32_t wait = delay;
 
-// Now,I am not using this as its becoming +1
-//	if(wait < MAX_DELAY)
-//	{
-//		wait += (uint32_t)tick_freq;
-//	}
-
-	while((get_tick() - tickstart) < wait)
+	while((SysTick_get_tick() - tickstart) < wait)
 	{
-		//Does Nothing
+		//Do's - Nothing
 	}
 }
+//Delay in Milli-seconds
+void SysTick_Delay_Ms(__REG delay_ms){
+	uint32_t tickstart = SysTick_get_tick();
+	uint32_t wait = delay_ms;
 
+	while((SysTick_get_tick() - tickstart) < wait)
+	{
+
+		//Do's - Nothing
+	}
+}
 void SysTick_Init(void)
 {
 	/* Reload the timer with number of cycles per second*/
-	SysTick->LOAD = ONE_SEC_LOAD - 1;
+	SysTick->LOAD = ONE_MILLISEC_LOAD - 1;
 
 	/* Clear SysTick current value register*/
 	SysTick->VAL = 0UL;
@@ -60,6 +68,7 @@ void SysTick_Init(void)
 
 	/* Enable global interrupts */
 	__enable_irq();
+
 }
 
 void Timer2_Init(void)
@@ -89,4 +98,12 @@ void Timer2_Init(void)
 void SysTick_Handler(void)
 {
 	SysTick_Inc();
+
+	#if RR_SCHEDULER
+		if(Quanta_timer == QUANTA){
+			osThreadYield();
+			Quanta_timer = 0;
+		}
+	#endif
 }
+

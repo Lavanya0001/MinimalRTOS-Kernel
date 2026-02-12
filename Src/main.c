@@ -12,7 +12,7 @@
 #include "led.h"
 #include "uart.h"
 #include "oskernel.h"
-#include "timebase.h"
+#include "timer.h"
 
 #if SEMA
 	semaphore_t semaphore1,semaphore2;
@@ -119,30 +119,40 @@ int main()
 	printf("Using UART1 for Logs..");
 #endif
 
-#if TIMER
-	Timer2_Init();
-#endif
-
-#if SEMA
-	osSemaphoreInit(&semaphore1, 1);
-	osSemaphoreInit(&semaphore2, 0);
-#endif
+	SysTick_Init();
 	Led_Init();
-	Led_Set(ON_BOARD_LED_BLUE);
 
+#if RTOS
+	/*Timer2 Initialization for PERODIC TASK*/
+	#if TIMER
+		Timer2_Init();
+	#endif
 
-	/*Initializing kernel*/
+	/*Semaphore Initialization for SYNC TASK*/
+	#if SEMA
+		osSemaphoreInit(&semaphore1, 1);
+		osSemaphoreInit(&semaphore2, 0);
+	#endif
+
+	/*Initializing KERNEL*/
 	osKernelInit();
 
-	/*Add threads*/
+	/*Add THREDS to kernel*/
 	if(!osKernelAddThreads(&task0, &task1, &task2)){
 		printf("ERROR in task creation");
 		while(1);
 	}
 
-	/*Set RoundRobbin time quanta*/
-	osKernelLaunch(QUNATA);
+	/*Set Kernel LAUNCH*/
+	osKernelLaunch();
+#endif
 
+	/* If RTOS = 1,Scheduler reaches here*/
+	while(1){
+		Led_Toggle(ON_BOARD_LED_BLUE);
+		SysTick_Delay_Sec(1);
+
+	}
 }
 
 void TIM2_IRQHandler(void)

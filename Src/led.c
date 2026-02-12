@@ -15,13 +15,18 @@ void Led_Init(void)
 
 void Led_Set(uint32_t gpio)
 {
-//	/* Set led pin HIGH (PB5)*/
+//	/* Set led pin HIGH (GPIO)*/
 	GPIOB->ODR |= gpio;
 }
 
 void Led_Clear(uint32_t gpio)
 {
-	/* Set led pin LOW (PB5)*/
+	/* Set led pin LOW (GPIO)*/
 	GPIOB->ODR &= ~(gpio);
 
+}
+
+void Led_Toggle(uint32_t gpio){
+	/* TOGGLE led pin (GPIO) */
+	GPIOB->ODR ^= gpio;
 }
