@@ -1,19 +1,13 @@
+//Upgrade develop for UART - Polling,ISR,DMA.
 #include <stdint.h>
 #include <stdio.h>
 #include "uart.h"
 #include "stm32wb55xx.h"
 
-
-#define GPIOAEN			(1U << 0)
-#define USART1EN		(1U << 14)
-
 #define SYS_FREQ		(4000000)
 #define APB2_CLK		SYS_FREQ
 #define UART_BAUDRATE	(115200)
-#define CR1_TE			(1U << 3)
 #define CR1_RE			(1U << 2)
-#define CR1_UE			(1U << 0)
-#define ISR_TXE			(1U << 7)
 
 #define USART1_TX		(1U << 9)  //PA9
 #define USART1_RX		(1U << 10) //PA10
@@ -31,7 +25,7 @@ int __io_putchar(int ch)
 void uart_tx_init(void)
 {
 	/* Enable clock access to GPIOA */
-	RCC->AHB2ENR |= GPIOAEN;
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN_Msk;
 
 	/* Set PA9 mode to alternate function mode */
 	GPIOA->MODER &= ~(3U << 18);
@@ -42,21 +36,21 @@ void uart_tx_init(void)
 	GPIOA->AFR[1] |=  (7U << 4);
 
 	/* Enable clock access to USART */
-	RCC->APB2ENR |= USART1EN;
+	RCC->APB2ENR |= RCC_APB2ENR_USART1EN_Msk;
 
 	/* Configure baudrate */
 	set_uart_baudrate(APB2_CLK, UART_BAUDRATE);
 
 	/* Configure transfer direction */
-	USART1->CR1 = CR1_TE;
+	USART1->CR1 = USART_CR1_TE_Msk;
 
 	/* Enable UART module */
-	USART1->CR1 |= CR1_UE;
+	USART1->CR1 |= USART_CR1_UE;
 
 }
 static void uart_write(int ch){
 	/* Make sure the transmit data register is empty*/
-	while(!(USART1->ISR & ISR_TXE)){}
+	while(!(USART1->ISR & USART_ISR_TXE)){}
 
 	/* Write to transmit data register*/
 	USART1->TDR = ch & (0xFF);
