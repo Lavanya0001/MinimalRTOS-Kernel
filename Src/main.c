@@ -5,7 +5,7 @@
  * 		2.1 Timer Interrupt using TIM2
  * 		2.2 Periodic Task Execution
  * 		2.3 Cooperative Semaphore Sync
- * 3.
+ * 3. Non-Premptive Scheduling
 */
 #include <rtos_config.h>
 #include <stdio.h>
